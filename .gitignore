@@ -1,0 +1,20 @@
+# Node
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.local
+
+# OS
+.DS_Store
+*.log
+
+# Editor
+.vscode/settings.json
+.idea/
+
+# Coverage
+coverage/
+
+# Figma local assets (受講生側で配置するもの。コミットしない)
+frontend/public/figma-assets/
