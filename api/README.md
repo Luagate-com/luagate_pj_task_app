@@ -1,6 +1,10 @@
-# luagate_pj_taskapp
+# luagate_pj_taskapp (starter)
 
-LuaGate 実践開発プロジェクト② — タスク管理アプリの **完成版 API**
+LuaGate 実践開発プロジェクト② — タスク管理アプリの **starter (受講生の出発点)**
+
+このブランチは「ルーティング・バリデーション・型・middleware が用意済の状態」から実装を始められるようにしたものです。各 route の中身は TODO コメントだけが書かれており、`res.status(501)` を返す状態になっています。
+
+完成版は `main` ブランチを参照してください。実装のヒントは [`docs/IMPLEMENTATION_GUIDE.md`](./docs/IMPLEMENTATION_GUIDE.md) を見てください。
 
 ## 技術スタック
 
@@ -34,7 +38,7 @@ npm run db:seed
 
 # 4. 起動
 npm run dev
-# → http://localhost:3000
+# → http://localhost:3030
 ```
 
 ## API エンドポイント
@@ -49,7 +53,7 @@ npm run dev
 リクエスト例
 
 ```bash
-curl -X POST http://localhost:3000/api/auth/signup \
+curl -X POST http://localhost:3030/api/auth/signup \
   -H "Content-Type: application/json" \
   -d '{"email":"me@example.com","password":"password123","displayName":"私"}'
 ```
@@ -71,20 +75,31 @@ curl -X POST http://localhost:3000/api/auth/signup \
 
 ```bash
 # version 1 で更新 (成功)
-curl -X PATCH http://localhost:3000/api/tasks/abc123 \
+curl -X PATCH http://localhost:3030/api/tasks/abc123 \
   -H "Authorization: Bearer TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"title":"新しいタイトル","version":1}'
 # → 200 OK + version: 2
 
 # 同じ version 1 で再度更新 (衝突)
-curl -X PATCH http://localhost:3000/api/tasks/abc123 \
+curl -X PATCH http://localhost:3030/api/tasks/abc123 \
   -H "Authorization: Bearer TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"title":"別のタイトル","version":1}'
 # → 409 Conflict
 # → { error: "Version conflict", currentVersion: 2, yourVersion: 1, currentTask: {...} }
 ```
+
+## TODO 一覧 (starter 用チェックリスト)
+
+- [ ] POST `/api/auth/signup`
+- [ ] POST `/api/auth/login`
+- [ ] GET `/api/me`
+- [ ] GET `/api/tasks`
+- [ ] GET `/api/tasks/:id`
+- [ ] POST `/api/tasks`
+- [ ] PATCH `/api/tasks/:id` ★ 楽観ロック ★
+- [ ] DELETE `/api/tasks/:id`
 
 ## デプロイ (Cloud Run)
 
@@ -117,3 +132,4 @@ gcloud run deploy prod-luagate-pj-taskapp-demo \
 
 - LuaGate 学習パス Ch180 — Node.js REST API
 - LuaGate 実践開発プロジェクト#1 — Java EC サイト (`Luagate-com/luagate_pj_ec_site`)
+- 完成版 — このリポジトリの `main` ブランチ

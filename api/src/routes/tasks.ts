@@ -5,7 +5,7 @@ import { requireAuth } from "../middleware/auth";
 
 export const tasksRouter = Router();
 
-// --- 入力スキーマ ---
+// --- 入力スキーマ (そのまま使ってよい) ---
 
 const statusEnum = z.enum(["not_started", "in_progress", "completed"]);
 const priorityEnum = z.enum(["low", "medium", "high"]);
@@ -32,7 +32,7 @@ const updateSchema = z.object({
     .regex(/^\d{4}-\d{2}-\d{2}(T.*)?$/, "YYYY-MM-DD or ISO 8601 datetime")
     .nullable()
     .optional(),
-  // 楽観ロック: クライアントが知っている version を渡す
+  // 楽観ロック クライアントが知っている version を必須で渡す
   version: z.number().int().min(1),
 });
 
@@ -42,97 +42,101 @@ const listQuerySchema = z.object({
 
 // --- ルート ---
 
-// 自分のタスク一覧 (?status= でフィルタ可)
+/**
+ * GET /api/tasks
+ *
+ * TODO 自分のタスク一覧を返す (?status= でフィルタ可能)
+ *
+ * ヒント
+ *   1. listQuerySchema.safeParse(req.query) でバリデーション
+ *   2. prisma.task.findMany({ where: { userId: req.userId!, status?: ... } })
+ *   3. orderBy で createdAt desc にする
+ *
+ * 学習ポイント
+ *   - クエリパラメータの型もスキーマで検証する
+ *   - スプレッド構文で条件を「あれば付ける」パターン
+ */
 tasksRouter.get("/", requireAuth, async (req, res) => {
-  const parsed = listQuerySchema.safeParse(req.query);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-
-  const tasks = await prisma.task.findMany({
-    where: {
-      userId: req.userId!,
-      ...(parsed.data.status ? { status: parsed.data.status } : {}),
-    },
-    orderBy: { createdAt: "desc" },
-  });
-  res.json(tasks);
+  res.status(501).json({ error: "Not implemented yet — finish this!" });
 });
 
-// タスク詳細
+/**
+ * GET /api/tasks/:id
+ *
+ * TODO タスク詳細を返す (本人のタスクのみ)
+ *
+ * ヒント
+ *   1. prisma.task.findUnique({ where: { id: req.params.id } })
+ *   2. 見つからなければ 404
+ *   3. task.userId !== req.userId! なら 403 (他人のタスクを覗かせない)
+ *   4. それ以外なら task を返す
+ *
+ * 学習ポイント
+ *   - 「無い」 (404) と「権限なし」 (403) は分けて返す
+ *   - 認可 (この人にアクセス権がある?) はルートごとに必ず書く
+ */
 tasksRouter.get("/:id", requireAuth, async (req, res) => {
-  const task = await prisma.task.findUnique({ where: { id: req.params.id } });
-  if (!task) return res.status(404).json({ error: "Task not found" });
-  if (task.userId !== req.userId!) {
-    return res.status(403).json({ error: "Access denied" });
-  }
-  res.json(task);
+  res.status(501).json({ error: "Not implemented yet — finish this!" });
 });
 
-// タスク作成
+/**
+ * POST /api/tasks
+ *
+ * TODO タスクを作成
+ *
+ * ヒント
+ *   1. createSchema.safeParse(req.body) でバリデーション
+ *   2. prisma.task.create で保存
+ *      - userId は req.userId!
+ *      - dueDate が来ていれば new Date(dueDate) に変換
+ *      - status / priority のデフォルトは "not_started" / "medium"
+ *   3. 201 で作成したタスクを返す
+ *
+ * 学習ポイント
+ *   - クライアントから来た文字列の日付は Date に変換してから保存
+ *   - undefined と null の違い (undefined = 触らない / null = 明示的に空にする)
+ */
 tasksRouter.post("/", requireAuth, async (req, res) => {
-  const parsed = createSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-
-  const task = await prisma.task.create({
-    data: {
-      userId: req.userId!,
-      title: parsed.data.title,
-      description: parsed.data.description,
-      status: parsed.data.status ?? "not_started",
-      priority: parsed.data.priority ?? "medium",
-      dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
-    },
-  });
-  res.status(201).json(task);
+  res.status(501).json({ error: "Not implemented yet — finish this!" });
 });
 
-// 更新 (楽観ロック付き) — 同時編集の衝突を 409 で返す
+/**
+ * PATCH /api/tasks/:id  ★★ 楽観ロック ★★
+ *
+ * TODO タスク更新 (同時編集の衝突を 409 で検知)
+ *
+ * ヒント
+ *   1. updateSchema.safeParse(req.body) でバリデーション (version は必須)
+ *   2. prisma.task.findUnique で取得 → 404 / 403 をチェック
+ *   3. task.version !== body.version なら 409 を返す
+ *      { error: "Version conflict", currentVersion: task.version, yourVersion, currentTask }
+ *   4. 一致したら prisma.task.update で更新。data に version: { increment: 1 } を含める
+ *   5. 更新後の task を 200 で返す
+ *
+ * 学習ポイント (この章のキモ)
+ *   - 楽観ロック = DB の version カラムで「他人が更新したか」を後追い検知する仕組み
+ *   - 衝突 (409) を受けた UI 側は「相手の編集内容を表示するか、自分の変更を再適用するか」
+ *     をユーザーに選ばせる
+ *   - 悲観ロックとの違い (悲観 = ロックを先取り / 楽観 = 後で気づく)
+ */
 tasksRouter.patch("/:id", requireAuth, async (req, res) => {
-  const parsed = updateSchema.safeParse(req.body);
-  if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
-
-  const task = await prisma.task.findUnique({ where: { id: req.params.id } });
-  if (!task) return res.status(404).json({ error: "Task not found" });
-  if (task.userId !== req.userId!) {
-    return res.status(403).json({ error: "Access denied" });
-  }
-
-  // 楽観ロック判定 — クライアントが見ていた version と DB が一致しなければ衝突
-  if (task.version !== parsed.data.version) {
-    return res.status(409).json({
-      error: "Version conflict",
-      currentVersion: task.version,
-      yourVersion: parsed.data.version,
-      currentTask: task,
-    });
-  }
-
-  const updated = await prisma.task.update({
-    where: { id: req.params.id },
-    data: {
-      title: parsed.data.title,
-      description: parsed.data.description,
-      status: parsed.data.status,
-      priority: parsed.data.priority,
-      dueDate:
-        parsed.data.dueDate === undefined
-          ? undefined
-          : parsed.data.dueDate === null
-          ? null
-          : new Date(parsed.data.dueDate),
-      version: { increment: 1 },
-    },
-  });
-  res.json(updated);
+  res.status(501).json({ error: "Not implemented yet — finish this!" });
 });
 
-// タスク削除
+/**
+ * DELETE /api/tasks/:id
+ *
+ * TODO タスクを削除
+ *
+ * ヒント
+ *   1. prisma.task.findUnique で取得 → 404 / 403 をチェック
+ *   2. prisma.task.delete({ where: { id } })
+ *   3. 204 No Content で返す
+ *
+ * 学習ポイント
+ *   - DELETE は通常レスポンスボディを返さない (204)
+ *   - 認可チェックを忘れずに (削除こそ事故が起きやすい)
+ */
 tasksRouter.delete("/:id", requireAuth, async (req, res) => {
-  const task = await prisma.task.findUnique({ where: { id: req.params.id } });
-  if (!task) return res.status(404).json({ error: "Task not found" });
-  if (task.userId !== req.userId!) {
-    return res.status(403).json({ error: "Access denied" });
-  }
-
-  await prisma.task.delete({ where: { id: req.params.id } });
-  res.status(204).send();
+  res.status(501).json({ error: "Not implemented yet — finish this!" });
 });

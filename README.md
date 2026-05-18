@@ -1,6 +1,12 @@
-# LuaGate 実践開発プロジェクト② — タスク管理アプリ
+# LuaGate 実践開発プロジェクト② — タスク管理アプリ (starter)
 
-LuaGate の実践開発プロジェクト第 2 弾。フルスタックの **タスク管理アプリ (個人向け Todo)** を、API と Frontend を 1 つの mono-repo で配布する完成版です。
+LuaGate の実践開発プロジェクト第 2 弾。フルスタックの **タスク管理アプリ (個人向け Todo)** を、API と Frontend を 1 つの mono-repo で配布しています。
+
+このブランチは **starter (受講生の出発点)** です。
+- `api/` — routes が TODO になっており、自分で実装する
+- `frontend/` — **完成版そのまま**。API を実装するにつれて動作するようになる
+
+完成版は `main` ブランチを参照してください。実装のヒントは [`api/docs/IMPLEMENTATION_GUIDE.md`](./api/docs/IMPLEMENTATION_GUIDE.md) を見てください。
 
 学習パス Ch180 (Node.js REST API) と Ch200 (React フロント) の集大成として位置付けています。
 
