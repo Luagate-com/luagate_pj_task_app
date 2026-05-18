@@ -97,8 +97,10 @@ npm run dev       # → http://localhost:5174
 
 ## デモ URL
 
-- API (Cloud Run) — **準備中** (デプロイ後に更新)
-- Frontend (Cloud Run) — **準備中** (デプロイ後に更新)
+- **Frontend (Cloud Run)** — https://prod-luagate-pj-taskapp-frontend-v3bbmayaea-an.a.run.app
+- **API (Cloud Run)** — https://prod-luagate-pj-taskapp-api-v3bbmayaea-an.a.run.app
+- **ヘルスチェック** — https://prod-luagate-pj-taskapp-api-v3bbmayaea-an.a.run.app/health
+- **デモアカウント** — alice@example.com / bob@example.com / carol@example.com (password `password123`)
 
 ## Figma
 
