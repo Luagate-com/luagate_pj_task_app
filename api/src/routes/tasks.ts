@@ -66,14 +66,16 @@ tasksRouter.get("/", requireAuth, async (req, res) => {
  * TODO タスク詳細を返す (本人のタスクのみ)
  *
  * ヒント
- *   1. prisma.task.findUnique({ where: { id: req.params.id } })
- *   2. 見つからなければ 404
- *   3. task.userId !== req.userId! なら 403 (他人のタスクを覗かせない)
- *   4. それ以外なら task を返す
+ *   1. prisma.task.findFirst({ where: { id: req.params.id, userId: req.userId! } })
+ *      ==WHERE 句に userId を入れる== ことで「他人のタスク」と「存在しないタスク」を
+ *      同じ「null」として扱える
+ *   2. 結果が null なら 404 を返す
+ *   3. 見つかればその task を返す
  *
  * 学習ポイント
- *   - 「無い」 (404) と「権限なし」 (403) は分けて返す
- *   - 認可 (この人にアクセス権がある?) はルートごとに必ず書く
+ *   - 他人のタスクは ==403 ではなく 404== で隠す (存在自体を漏らさないため)
+ *   - 所有チェックは「取得してから比較」ではなく「クエリの WHERE 句」で行うのが鉄則
+ *   - 同じパターンを PATCH / DELETE でも繰り返し使う
  */
 tasksRouter.get("/:id", requireAuth, async (req, res) => {
   res.status(501).json({ error: "Not implemented yet — finish this!" });
@@ -103,18 +105,25 @@ tasksRouter.post("/", requireAuth, async (req, res) => {
 /**
  * PATCH /api/tasks/:id  ★★ 楽観ロック ★★
  *
- * TODO タスク更新 (同時編集の衝突を 409 で検知)
+ * TODO タスク更新 (所有チェック + 同時編集の衝突を 409 で検知)
  *
  * ヒント
  *   1. updateSchema.safeParse(req.body) でバリデーション (version は必須)
- *   2. prisma.task.findUnique で取得 → 404 / 403 をチェック
- *   3. task.version !== body.version なら 409 を返す
- *      { error: "Version conflict", currentVersion: task.version, yourVersion, currentTask }
- *   4. 一致したら prisma.task.update で更新。data に version: { increment: 1 } を含める
- *   5. 更新後の task を 200 で返す
+ *   2. prisma.task.updateMany({
+ *        where: { id: req.params.id, userId: req.userId!, version: parsed.data.version },
+ *        data: { ...更新内容..., version: { increment: 1 } }
+ *      })
+ *      ==WHERE に userId と version の両方==を入れて 1 発で「所有チェック + 楽観ロック」をやる
+ *   3. result.count === 0 のとき、原因を切り分ける
+ *      - prisma.task.findFirst({ where: { id, userId } }) で存在確認
+ *      - 無ければ 404 (他人のタスク or 存在しない)
+ *      - 有れば version 不一致なので 409
+ *        { error: "Version conflict", currentVersion, yourVersion, currentTask }
+ *   4. 成功したら更新後のタスクを取得して 200 で返す
  *
  * 学習ポイント (この章のキモ)
  *   - 楽観ロック = DB の version カラムで「他人が更新したか」を後追い検知する仕組み
+ *   - updateMany を ==1 本の UPDATE== にすれば、所有チェックと version 判定が原子的になる
  *   - 衝突 (409) を受けた UI 側は「相手の編集内容を表示するか、自分の変更を再適用するか」
  *     をユーザーに選ばせる
  *   - 悲観ロックとの違い (悲観 = ロックを先取り / 楽観 = 後で気づく)
@@ -126,16 +135,19 @@ tasksRouter.patch("/:id", requireAuth, async (req, res) => {
 /**
  * DELETE /api/tasks/:id
  *
- * TODO タスクを削除
+ * TODO タスクを削除 (所有者のみ)
  *
  * ヒント
- *   1. prisma.task.findUnique で取得 → 404 / 403 をチェック
- *   2. prisma.task.delete({ where: { id } })
- *   3. 204 No Content で返す
+ *   1. prisma.task.deleteMany({ where: { id: req.params.id, userId: req.userId! } })
+ *      ==WHERE に userId を含める== ことで「他人のタスク」と「存在しないタスク」を
+ *      まとめて「count===0」として扱える
+ *   2. result.count === 0 なら 404 を返す (他人のタスクも 404 で隠す)
+ *   3. 成功時は 204 No Content
  *
  * 学習ポイント
  *   - DELETE は通常レスポンスボディを返さない (204)
- *   - 認可チェックを忘れずに (削除こそ事故が起きやすい)
+ *   - 認可チェックを ==クエリの WHERE 句== でやる (削除こそ事故が起きやすい)
+ *   - 他人のタスクは 403 ではなく 404 で隠す (存在を漏らさない)
  */
 tasksRouter.delete("/:id", requireAuth, async (req, res) => {
   res.status(501).json({ error: "Not implemented yet — finish this!" });
