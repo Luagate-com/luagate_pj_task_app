@@ -57,13 +57,12 @@ tasksRouter.get("/", requireAuth, async (req, res) => {
   res.json(tasks);
 });
 
-// タスク詳細
+// タスク詳細 — 所有チェックは WHERE 句で行い、他人のタスクは 404 で隠す
 tasksRouter.get("/:id", requireAuth, async (req, res) => {
-  const task = await prisma.task.findUnique({ where: { id: req.params.id } });
+  const task = await prisma.task.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+  });
   if (!task) return res.status(404).json({ error: "Task not found" });
-  if (task.userId !== req.userId!) {
-    return res.status(403).json({ error: "Access denied" });
-  }
   res.json(task);
 });
 
@@ -85,29 +84,18 @@ tasksRouter.post("/", requireAuth, async (req, res) => {
   res.status(201).json(task);
 });
 
-// 更新 (楽観ロック付き) — 同時編集の衝突を 409 で返す
+// 更新 (楽観ロック付き) — 所有チェックを WHERE 句に入れて updateMany で実行
+// count===0 のとき、所有不一致なら 404、version 不一致なら 409 を返す
 tasksRouter.patch("/:id", requireAuth, async (req, res) => {
   const parsed = updateSchema.safeParse(req.body);
   if (!parsed.success) return res.status(400).json({ error: parsed.error.flatten() });
 
-  const task = await prisma.task.findUnique({ where: { id: req.params.id } });
-  if (!task) return res.status(404).json({ error: "Task not found" });
-  if (task.userId !== req.userId!) {
-    return res.status(403).json({ error: "Access denied" });
-  }
-
-  // 楽観ロック判定 — クライアントが見ていた version と DB が一致しなければ衝突
-  if (task.version !== parsed.data.version) {
-    return res.status(409).json({
-      error: "Version conflict",
-      currentVersion: task.version,
-      yourVersion: parsed.data.version,
-      currentTask: task,
-    });
-  }
-
-  const updated = await prisma.task.update({
-    where: { id: req.params.id },
+  const result = await prisma.task.updateMany({
+    where: {
+      id: req.params.id,
+      userId: req.userId!,
+      version: parsed.data.version,
+    },
     data: {
       title: parsed.data.title,
       description: parsed.data.description,
@@ -122,17 +110,34 @@ tasksRouter.patch("/:id", requireAuth, async (req, res) => {
       version: { increment: 1 },
     },
   });
+
+  if (result.count === 0) {
+    // 所有者として該当 id が存在するか確認 — しなければ 404、あれば version 不一致 = 409
+    const existing = await prisma.task.findFirst({
+      where: { id: req.params.id, userId: req.userId! },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: "Task not found" });
+    }
+    return res.status(409).json({
+      error: "Version conflict",
+      currentVersion: existing.version,
+      yourVersion: parsed.data.version,
+      currentTask: existing,
+    });
+  }
+
+  const updated = await prisma.task.findUnique({ where: { id: req.params.id } });
   res.json(updated);
 });
 
-// タスク削除
+// タスク削除 — 所有チェックを WHERE 句に入れた deleteMany で実行。count===0 は 404
 tasksRouter.delete("/:id", requireAuth, async (req, res) => {
-  const task = await prisma.task.findUnique({ where: { id: req.params.id } });
-  if (!task) return res.status(404).json({ error: "Task not found" });
-  if (task.userId !== req.userId!) {
-    return res.status(403).json({ error: "Access denied" });
+  const result = await prisma.task.deleteMany({
+    where: { id: req.params.id, userId: req.userId! },
+  });
+  if (result.count === 0) {
+    return res.status(404).json({ error: "Task not found" });
   }
-
-  await prisma.task.delete({ where: { id: req.params.id } });
   res.status(204).send();
 });
