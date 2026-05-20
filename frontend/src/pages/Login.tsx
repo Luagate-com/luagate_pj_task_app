@@ -1,18 +1,16 @@
 import { useState } from "react";
-import { Link, Navigate } from "react-router-dom";
+import { Link, Navigate, useNavigate } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { getToken } from "../lib/auth";
-// TODO Ch12-login-ui handleSubmit を実装するときに次の import が必要になる
-// import { useNavigate } from "react-router-dom";
-// import { apiPost, formatApiError } from "../lib/api";
-// import { setToken, updateCurrentUser } from "../lib/auth";
-// import type { AuthResponse } from "../types";
+import { apiPost, formatApiError } from "../lib/api";
+import { getToken, setToken, updateCurrentUser } from "../lib/auth";
+import type { AuthResponse } from "../types";
 
 export function Login() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [submitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (getToken()) {
@@ -36,8 +34,22 @@ export function Login() {
    */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setSubmitting(true);
     setError(null);
-    throw new Error("Not implemented yet — see chapter 12-login-ui");
+    try {
+      const res = await apiPost<AuthResponse>(
+        "/api/auth/login",
+        { email, password },
+        { skipAuthRedirect: true },
+      );
+      setToken(res.token);
+      updateCurrentUser(res.user);
+      navigate("/", { replace: true });
+    } catch (err) {
+      setError(formatApiError(err));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
