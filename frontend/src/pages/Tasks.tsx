@@ -8,8 +8,7 @@ import { TaskDetailModal } from "../components/TaskDetailModal";
 import { EditTaskModal } from "../components/EditTaskModal";
 import { DeleteConfirmModal } from "../components/DeleteConfirmModal";
 import type { Task } from "../types";
-// TODO Ch13-tasks-ui タスク一覧取得を実装するときに次の import が必要になる
-// import { apiGet, formatApiError } from "../lib/api";
+import { apiGet, formatApiError } from "../lib/api";
 
 type ModalState =
   | { kind: "none" }
@@ -21,8 +20,7 @@ type ModalState =
 export function Tasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  // TODO Ch13-tasks-ui タスク取得に失敗したら setError でエラー帯を出す
-  const [error] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [modal, setModal] = useState<ModalState>({ kind: "none" });
 
@@ -41,7 +39,24 @@ export function Tasks() {
    *   - 完成までは setLoading(false) だけ呼んで空状態を表示しておく
    */
   useEffect(() => {
-    setLoading(false);
+    let cancel = false;
+    (async () => {
+      try {
+        const list = await apiGet<Task[]>("/api/tasks");
+        if (!cancel) {
+          setTasks(list);
+          setLoading(false);
+        }
+      } catch (err) {
+        if (!cancel) {
+          setError(formatApiError(err));
+          setLoading(false);
+        }
+      }
+    })();
+    return () => {
+      cancel = true;
+    };
   }, []);
 
   const counts = useMemo(() => {
