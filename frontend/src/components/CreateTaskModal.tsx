@@ -1,8 +1,7 @@
 import { useState } from "react";
 import { Calendar, ChevronDown, X } from "lucide-react";
 import type { Priority, Status, Task } from "../types";
-// TODO Ch14-modals handleSubmit を実装するときに次の import が必要になる
-// import { apiPost, formatApiError } from "../lib/api";
+import { apiPost, formatApiError } from "../lib/api";
 
 interface Props {
   open: boolean;
@@ -16,14 +15,13 @@ const STATUS_OPTIONS: { value: Status; label: string }[] = [
   { value: "completed", label: "完了" },
 ];
 
-// onCreated は handleSubmit 完成時に props から受け取って使う
-export function CreateTaskModal({ open, onClose }: Props) {
+export function CreateTaskModal({ open, onClose, onCreated }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState<Priority>("medium");
   const [status, setStatus] = useState<Status>("not_started");
-  const [submitting] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!open) return null;
@@ -45,8 +43,29 @@ export function CreateTaskModal({ open, onClose }: Props) {
    */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    setSubmitting(true);
     setError(null);
-    throw new Error("Not implemented yet — see chapter 14-modals");
+    try {
+      const task = await apiPost<Task>("/api/tasks", {
+        title,
+        description: description || null,
+        status,
+        priority,
+        dueDate: dueDate || null,
+      });
+      onCreated(task);
+      // 次回開いたときに前回の入力が残らないように reset
+      setTitle("");
+      setDescription("");
+      setDueDate("");
+      setPriority("medium");
+      setStatus("not_started");
+      onClose();
+    } catch (err) {
+      setError(formatApiError(err));
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   return (
