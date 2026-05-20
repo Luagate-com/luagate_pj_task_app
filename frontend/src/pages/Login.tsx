@@ -1,40 +1,43 @@
 import { useState } from "react";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
-import { apiPost, formatApiError } from "../lib/api";
-import { getToken, setToken, updateCurrentUser } from "../lib/auth";
-import type { AuthResponse } from "../types";
+import { getToken } from "../lib/auth";
+// TODO Ch12-login-ui handleSubmit を実装するときに次の import が必要になる
+// import { useNavigate } from "react-router-dom";
+// import { apiPost, formatApiError } from "../lib/api";
+// import { setToken, updateCurrentUser } from "../lib/auth";
+// import type { AuthResponse } from "../types";
 
 export function Login() {
-  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (getToken()) {
     return <Navigate to="/" replace />;
   }
 
+  /**
+   * TODO Ch12-login-ui ログイン処理を実装する
+   *
+   * ヒント
+   *   1. apiPost<AuthResponse>("/api/auth/login", { email, password }, { skipAuthRedirect: true })
+   *      でログイン API を呼ぶ
+   *   2. 成功したら setToken(res.token) で JWT を保存し、updateCurrentUser(res.user) でユーザーを反映
+   *   3. navigate("/", { replace: true }) でタスク一覧へ遷移する
+   *   4. 失敗時 (401 など) は catch で setError(formatApiError(err)) を呼んでエラーを表示
+   *   5. submitting state を try の前後で true / false に切り替え、二重送信を防ぐ
+   *
+   * 学習ポイント
+   *   - ログイン画面では skipAuthRedirect を true にして 401 でのフルリロードを防ぐ
+   *   - setSubmitting は finally で必ず false に戻す (失敗時にボタンが固まらないように)
+   */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
     setError(null);
-    try {
-      const res = await apiPost<AuthResponse>(
-        "/api/auth/login",
-        { email, password },
-        { skipAuthRedirect: true },
-      );
-      setToken(res.token);
-      updateCurrentUser(res.user);
-      navigate("/", { replace: true });
-    } catch (err) {
-      setError(formatApiError(err));
-    } finally {
-      setSubmitting(false);
-    }
+    throw new Error("Not implemented yet — see chapter 12-login-ui");
   }
 
   return (

@@ -7,8 +7,9 @@ import { CreateTaskModal } from "../components/CreateTaskModal";
 import { TaskDetailModal } from "../components/TaskDetailModal";
 import { EditTaskModal } from "../components/EditTaskModal";
 import { DeleteConfirmModal } from "../components/DeleteConfirmModal";
-import { apiGet, formatApiError } from "../lib/api";
 import type { Task } from "../types";
+// TODO Ch13-tasks-ui タスク一覧取得を実装するときに次の import が必要になる
+// import { apiGet, formatApiError } from "../lib/api";
 
 type ModalState =
   | { kind: "none" }
@@ -20,29 +21,27 @@ type ModalState =
 export function Tasks() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  // TODO Ch13-tasks-ui タスク取得に失敗したら setError でエラー帯を出す
+  const [error] = useState<string | null>(null);
   const [filter, setFilter] = useState<FilterKey>("all");
   const [modal, setModal] = useState<ModalState>({ kind: "none" });
 
+  /**
+   * TODO Ch13-tasks-ui ログイン中ユーザーのタスク一覧を取得する
+   *
+   * ヒント
+   *   1. apiGet<Task[]>("/api/tasks") で一覧を取得する
+   *   2. 成功したら setTasks(list) で配列を反映し、setLoading(false) でスピナーを止める
+   *   3. 失敗したら setError(formatApiError(err)) でエラー帯を出し、ここでも setLoading(false)
+   *   4. cancel フラグで unmount 後の setState を防ぐ (お決まりパターン)
+   *
+   * 学習ポイント
+   *   - loading / error / data の 3 状態を必ず分けて管理する
+   *   - setLoading(false) は成功・失敗どちらの経路でも呼ぶ (永遠に読み込み中を防ぐ)
+   *   - 完成までは setLoading(false) だけ呼んで空状態を表示しておく
+   */
   useEffect(() => {
-    let cancel = false;
-    (async () => {
-      try {
-        const list = await apiGet<Task[]>("/api/tasks");
-        if (!cancel) {
-          setTasks(list);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (!cancel) {
-          setError(formatApiError(err));
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      cancel = true;
-    };
+    setLoading(false);
   }, []);
 
   const counts = useMemo(() => {

@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { Calendar, ChevronDown, X } from "lucide-react";
 import type { Priority, Status, Task } from "../types";
-import { apiPost, formatApiError } from "../lib/api";
+// TODO Ch14-modals handleSubmit を実装するときに次の import が必要になる
+// import { apiPost, formatApiError } from "../lib/api";
 
 interface Props {
   open: boolean;
@@ -15,42 +16,37 @@ const STATUS_OPTIONS: { value: Status; label: string }[] = [
   { value: "completed", label: "完了" },
 ];
 
-export function CreateTaskModal({ open, onClose, onCreated }: Props) {
+// onCreated は handleSubmit 完成時に props から受け取って使う
+export function CreateTaskModal({ open, onClose }: Props) {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [dueDate, setDueDate] = useState("");
   const [priority, setPriority] = useState<Priority>("medium");
   const [status, setStatus] = useState<Status>("not_started");
-  const [submitting, setSubmitting] = useState(false);
+  const [submitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   if (!open) return null;
 
+  /**
+   * TODO Ch14-modals 新規タスクを作成する
+   *
+   * ヒント
+   *   1. apiPost<Task>("/api/tasks", { title, description: description || null,
+   *      status, priority, dueDate: dueDate || null }) で作成 API を呼ぶ
+   *   2. 成功したら onCreated(task) で親に通知し、入力欄を reset してから onClose()
+   *   3. 失敗したら catch で setError(formatApiError(err)) を呼ぶ
+   *      (409 のときは「同じタイトルのタスクが既にあります」など分岐してもよい)
+   *   4. submitting state を try の前後で true / false に切り替え、二重送信を防ぐ
+   *
+   * 学習ポイント
+   *   - 空文字は description: description || null のように null へ正規化する
+   *   - reset は onCreated のあと onClose の前に行う (次回開いたとき前回値を残さない)
+   */
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setSubmitting(true);
     setError(null);
-    try {
-      const task = await apiPost<Task>("/api/tasks", {
-        title,
-        description: description || null,
-        status,
-        priority,
-        dueDate: dueDate || null,
-      });
-      onCreated(task);
-      // reset
-      setTitle("");
-      setDescription("");
-      setDueDate("");
-      setPriority("medium");
-      setStatus("not_started");
-      onClose();
-    } catch (err) {
-      setError(formatApiError(err));
-    } finally {
-      setSubmitting(false);
-    }
+    throw new Error("Not implemented yet — see chapter 14-modals");
   }
 
   return (

@@ -3,8 +3,10 @@
 LuaGate の実践開発プロジェクト第 2 弾。フルスタックの **タスク管理アプリ (個人向け Todo)** を、API と Frontend を 1 つの mono-repo で配布しています。
 
 このブランチは **starter (受講生の出発点)** です。
-- `api/` — routes が TODO になっており、自分で実装する
-- `frontend/` — **完成版そのまま**。API を実装するにつれて動作するようになる
+- `api/` — routes が `TODO` になっており、章を進めながら自分で実装する
+- `frontend/` — `api/` と同様、画面の枠は組んであるが中核ロジックが `TODO` になっている。章を進めながら埋めていく
+
+`api/` と `frontend/` どちらにも `// TODO Ch..` 付きの雛形が置かれています。学習パスの章 (Ch12-14 など) を読みながら、該当箇所の `TODO` を埋めると画面と API の往復が動くようになります。
 
 完成版は `main` ブランチを参照してください。実装のヒントは [`api/docs/IMPLEMENTATION_GUIDE.md`](./api/docs/IMPLEMENTATION_GUIDE.md) を見てください。
 
@@ -115,7 +117,7 @@ UI 仕様は Figma で管理しています。各画面の node-id は `docs/FIG
 ## ブランチ構成
 
 - `main` — 完成版 (API + Frontend どちらも完成)
-- `starter` — 受講生向けのスタータ。`api/` の routes が TODO になっており、自分で実装する課題用
+- `starter` — 受講生向けのスタータ。`api/` の routes と `frontend/` の中核ロジックが TODO になっており、章を進めながら自分で実装する課題用
 
 ## ライセンス
 
