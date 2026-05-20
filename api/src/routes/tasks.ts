@@ -57,7 +57,19 @@ const listQuerySchema = z.object({
  *   - スプレッド構文で条件を「あれば付ける」パターン
  */
 tasksRouter.get("/", requireAuth, async (req, res) => {
-  res.status(501).json({ error: "Not implemented yet — finish this!" });
+  const parsed = listQuerySchema.safeParse(req.query);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.flatten() });
+  }
+
+  const tasks = await prisma.task.findMany({
+    where: {
+      userId: req.userId!,
+      ...(parsed.data.status ? { status: parsed.data.status } : {}),
+    },
+    orderBy: { createdAt: "desc" },
+  });
+  res.json(tasks);
 });
 
 /**
@@ -78,7 +90,13 @@ tasksRouter.get("/", requireAuth, async (req, res) => {
  *   - 同じパターンを PATCH / DELETE でも繰り返し使う
  */
 tasksRouter.get("/:id", requireAuth, async (req, res) => {
-  res.status(501).json({ error: "Not implemented yet — finish this!" });
+  const task = await prisma.task.findFirst({
+    where: { id: req.params.id, userId: req.userId! },
+  });
+  if (!task) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  res.json(task);
 });
 
 /**
@@ -99,7 +117,22 @@ tasksRouter.get("/:id", requireAuth, async (req, res) => {
  *   - undefined と null の違い (undefined = 触らない / null = 明示的に空にする)
  */
 tasksRouter.post("/", requireAuth, async (req, res) => {
-  res.status(501).json({ error: "Not implemented yet — finish this!" });
+  const parsed = createSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.flatten() });
+  }
+
+  const task = await prisma.task.create({
+    data: {
+      userId: req.userId!,
+      title: parsed.data.title,
+      description: parsed.data.description,
+      status: parsed.data.status ?? "not_started",
+      priority: parsed.data.priority ?? "medium",
+      dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
+    },
+  });
+  res.status(201).json(task);
 });
 
 /**
@@ -129,7 +162,44 @@ tasksRouter.post("/", requireAuth, async (req, res) => {
  *   - 悲観ロックとの違い (悲観 = ロックを先取り / 楽観 = 後で気づく)
  */
 tasksRouter.patch("/:id", requireAuth, async (req, res) => {
-  res.status(501).json({ error: "Not implemented yet — finish this!" });
+  const parsed = updateSchema.safeParse(req.body);
+  if (!parsed.success) {
+    return res.status(400).json({ error: parsed.error.flatten() });
+  }
+  // version はクライアントが「読んだ時点の version」。data には混ぜず WHERE に使う。
+  const { version, dueDate, ...rest } = parsed.data;
+
+  const result = await prisma.task.updateMany({
+    where: {
+      id: req.params.id,
+      userId: req.userId!,
+      version,
+    },
+    data: {
+      ...rest,
+      dueDate:
+        dueDate === undefined ? undefined : dueDate === null ? null : new Date(dueDate),
+      version: { increment: 1 },
+    },
+  });
+
+  if (result.count === 0) {
+    const existing = await prisma.task.findFirst({
+      where: { id: req.params.id, userId: req.userId! },
+    });
+    if (!existing) {
+      return res.status(404).json({ error: "not_found" });
+    }
+    return res.status(409).json({
+      error: "Version conflict",
+      currentVersion: existing.version,
+      yourVersion: version,
+      currentTask: existing,
+    });
+  }
+
+  const updated = await prisma.task.findUnique({ where: { id: req.params.id } });
+  res.json(updated);
 });
 
 /**
@@ -150,5 +220,11 @@ tasksRouter.patch("/:id", requireAuth, async (req, res) => {
  *   - 他人のタスクは 403 ではなく 404 で隠す (存在を漏らさない)
  */
 tasksRouter.delete("/:id", requireAuth, async (req, res) => {
-  res.status(501).json({ error: "Not implemented yet — finish this!" });
+  const result = await prisma.task.deleteMany({
+    where: { id: req.params.id, userId: req.userId! },
+  });
+  if (result.count === 0) {
+    return res.status(404).json({ error: "not_found" });
+  }
+  res.status(204).send();
 });
